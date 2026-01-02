@@ -119,8 +119,8 @@
         };
 
         const bleedAmount = 20; 
-        const cloudName = 'dqbwhxnxn'; // Ganti dengan Cloud Name Anda
-        const uploadPreset = 'photoboth_upload'; // Ganti dengan Upload Preset Anda
+        const cloudName = 'dqbwhxnxn'; 
+        const uploadPreset = 'photoboth_upload'; 
         let currentFrameId = 'frame1';
         let isMirror = true;
         let capturedPhotos = [];
@@ -132,9 +132,16 @@
         const btnAction = document.getElementById('btnAction');
         const printLoading = document.getElementById('printLoading');
 
+        // Optimasi Video Constraints untuk Mobile
         navigator.mediaDevices.getUserMedia({ 
-            video: { width: 1920, height: 1080 } 
-        }).then(stream => { video.srcObject = stream; });
+            video: { 
+                width: { ideal: 1920 }, 
+                height: { ideal: 1080 },
+                facingMode: "user"
+            } 
+        }).then(stream => { 
+            video.srcObject = stream; 
+        }).catch(err => alert("Kamera tidak diizinkan atau tidak ditemukan."));
 
         function toggleMirror() {
             isMirror = !isMirror;
@@ -157,9 +164,12 @@
             for(let i=1; i<=3; i++) {
                 btnAction.innerHTML = `PHOTO ${i} / 3`;
                 await runCountdown(3);
+                
+                // Flash Effect
                 document.getElementById('flashOverlay').classList.add('flash-active');
+                capturePhoto(); // Ambil foto tepat saat flash
                 setTimeout(() => document.getElementById('flashOverlay').classList.remove('flash-active'), 600);
-                capturePhoto();
+                
                 if(i < 3) await new Promise(r => setTimeout(r, 800));
             }
             
@@ -185,21 +195,32 @@
             });
         }
 
+        // OPTIMASI 1: Ambil foto sebagai JPEG (Lebih ringan dari PNG)
         function capturePhoto() {
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = video.videoWidth;
             tempCanvas.height = video.videoHeight;
             const tCtx = tempCanvas.getContext('2d');
-            if(isMirror) { tCtx.translate(tempCanvas.width, 0); tCtx.scale(-1, 1); }
+            
+            if(isMirror) { 
+                tCtx.translate(tempCanvas.width, 0); 
+                tCtx.scale(-1, 1); 
+            }
+            
             tCtx.drawImage(video, 0, 0);
-            capturedPhotos.push(tempCanvas.toDataURL('image/png', 1.0));
+            // Simpan sebagai JPEG kualitas 0.8 untuk menghemat memori iOS
+            capturedPhotos.push(tempCanvas.toDataURL('image/jpeg', 0.8));
         }
 
         async function generateFinalStrip() {
             printLoading.classList.remove('hidden');
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { alpha: false }); // Optimasi: Matikan alpha jika tidak perlu
             canvas.width = stripConfig.canvasWidth;
             canvas.height = stripConfig.canvasHeight;
+
+            // Isi background putih (karena JPEG tidak mendukung transparansi)
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const imgFrame = new Image();
             imgFrame.src = `images/${currentFrameId}.png`;
@@ -213,36 +234,38 @@
 
                     const targetX = stripConfig.photoXPositions[i];
                     const targetY = stripConfig.photoYPositions[i];
-                    
                     const bX = targetX - bleedAmount;
                     const bY = targetY - bleedAmount;
                     const bW = stripConfig.photoWidth + (bleedAmount * 2);
                     const bH = stripConfig.photoHeight + (bleedAmount * 2);
 
-                    drawSmartCrop(ctx, p, bX, bY, bW, bH);
+                    // Gambar foto
+                    ctx.drawImage(p, 0, 0, p.width, p.height, bX, bY, bW, bH);
                 }
 
+                // Gambar Frame (PNG tetap di atas)
                 ctx.drawImage(imgFrame, 0, 0, stripConfig.canvasWidth, stripConfig.canvasHeight);
-                uploadToCloudinary(canvas.toDataURL('image/png', 0.95));
+                
+                // OPTIMASI 2: Gunakan toBlob (Jauh lebih stabil di iPhone daripada Base64)
+                canvas.toBlob((blob) => {
+                    uploadToCloudinary(blob);
+                }, 'image/jpeg', 0.9); 
             };
         }
 
-        // LOGIKA BARU: Paksa isi kotak (Stretching Vertikal)
-        function drawSmartCrop(ctx, img, x, y, w, h) {
-            // Lebar (w) tetap sesuai photoWidth + bleed
-            // Tinggi (h) dipaksa ke 812px + bleed (sekitar 2.95cm di cetakan)
-            // drawImage memetakan seluruh foto ke ukuran target secara paksa
-            ctx.drawImage(img, 0, 0, img.width, img.height, x, y, w, h);
-        }
-
-        async function uploadToCloudinary(base64) {
+        async function uploadToCloudinary(fileBlob) {
             const formData = new FormData();
-            formData.append('file', base64);
+            // Kirim sebagai file mentah
+            formData.append('file', fileBlob, "strip.jpg");
             formData.append('upload_preset', uploadPreset);
             formData.append('tags', 'photoboth_event');
 
             try {
-                const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: formData });
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { 
+                    method: 'POST', 
+                    body: formData 
+                });
+                
                 const data = await res.json();
                 printLoading.classList.add('hidden');
                 btnAction.disabled = false;
@@ -250,15 +273,16 @@
 
                 if (data.secure_url) {
                     document.getElementById('status').innerHTML = `
-                        <div class="p-3 bg-zinc-50 rounded-xl flex items-center justify-between border border-zinc-100 shadow-lg">
-                            <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-900">Ready!</span>
+                        <div class="p-3 bg-zinc-50 rounded-xl flex items-center justify-between border border-zinc-100 shadow-lg animate-bounce">
+                            <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-900">✨ Ready to Save!</span>
                             <div class="flex gap-2">
-                                <a href="${data.secure_url}" target="_blank" class="bg-zinc-900 text-white px-4 py-1.5 rounded-full text-[8px] font-bold uppercase tracking-widest hover:bg-black transition-colors">Download</a>
+                                <a href="${data.secure_url}" target="_blank" class="bg-zinc-900 text-white px-4 py-1.5 rounded-full text-[8px] font-bold uppercase tracking-widest">Download</a>
                             </div>
                         </div>`;
                 }
             } catch (err) {
-                alert("Upload Failed.");
+                console.error(err);
+                alert("Upload Gagal. Coba lagi.");
                 printLoading.classList.add('hidden');
                 btnAction.disabled = false;
             }
