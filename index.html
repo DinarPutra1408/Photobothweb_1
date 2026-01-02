@@ -239,7 +239,7 @@
             const formData = new FormData();
             formData.append('file', base64);
             formData.append('upload_preset', uploadPreset);
-            formData.append('tags', 'photobox_event');
+            formData.append('tags', 'photoboth_event');
 
             try {
                 const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: formData });
