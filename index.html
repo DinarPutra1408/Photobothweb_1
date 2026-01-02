@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jepreto — Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #ffffff; color: #1a1a1a; overflow-x: hidden; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .mirror-active { transform: scaleX(-1); }
+        @keyframes countPop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+        .animate-count { animation: countPop 0.8s ease-in-out forwards; }
+        @keyframes flashEffect { 0% { opacity: 1; background: white; } 100% { opacity: 0; } }
+        .flash-active { animation: flashEffect 0.6s ease-out forwards; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .preview-wrapper {
+            max-height: 42vh; 
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            background: #f4f4f5;
+            transition: all 0.3s ease;
+        }
+
+        @media (min-width: 1024px) {
+            .preview-wrapper { max-height: 65vh; }
+        }
+
+        .capturing-mode #liveFrameWrapper { display: none !important; }
+        .capturing-mode .preview-wrapper {
+            background: #000;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 1rem !important;
+        }
+        .capturing-mode #webcam { object-fit: cover; }
+    </style>
+</head>
+<body id="mainBody" class="min-h-screen flex flex-col items-center bg-white">
+
+    <div id="flashOverlay" class="fixed inset-0 z-[100] pointer-events-none opacity-0"></div>
+
+    <header class="w-full py-2 md:py-6 px-4 md:px-6 text-center border-b border-zinc-50 sticky top-0 bg-white/90 backdrop-blur-md z-50 flex justify-between items-center">
+        <div class="w-16 md:w-32"></div> 
+        <h1 class="font-serif text-base md:text-3xl italic tracking-tighter text-zinc-900">
+            Jepreto<span class="text-zinc-300">.Studio</span>
+        </h1>
+        <a href="gallery.html" class="w-20 md:w-32 text-[7px] md:text-[10px] font-bold tracking-widest uppercase border border-zinc-200 px-2 py-1.5 md:px-3 md:py-2 rounded-full hover:bg-zinc-900 hover:text-white transition-all text-center">
+            Gallery →
+        </a>
+    </header>
+
+    <main class="w-full max-w-5xl flex flex-col lg:flex-row items-center lg:items-start gap-2 md:gap-10 p-2 md:p-10">
+        
+        <div class="w-full lg:w-1/2 flex flex-col">
+            <div class="preview-wrapper relative aspect-[3/4] bg-zinc-100 rounded-[1.2rem] md:rounded-[2rem] overflow-hidden shadow-xl border-[4px] md:border-[12px] border-white ring-1 ring-zinc-100">
+                <video id="webcam" autoplay playsinline class="w-full h-full object-cover mirror-active"></video>
+                
+                <div id="liveFrameWrapper" class="absolute inset-0 w-full h-full pointer-events-none z-10">
+                    <img id="liveFrame" src="images/frame1.png" class="w-full h-full object-fill opacity-60">
+                </div>
+                
+                <div id="countdownBox" class="absolute inset-0 flex items-center justify-center z-40 pointer-events-none text-white">
+                    <span id="countdownText" class="font-serif text-[60px] md:text-[160px] italic drop-shadow-2xl"></span>
+                </div>
+
+                <div id="printLoading" class="hidden absolute inset-0 bg-white/95 z-50 flex flex-col items-center justify-center text-center px-6">
+                    <div class="w-8 h-8 border-2 border-zinc-100 border-t-zinc-900 rounded-full animate-spin"></div>
+                    <p id="loadingStatus" class="mt-4 text-[9px] tracking-[0.2em] font-bold text-zinc-500 uppercase italic">Precision Rendering...</p>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mt-2 px-1 gap-2">
+                <button onclick="toggleMirror()" class="flex-1 flex items-center justify-center gap-2 bg-zinc-50 border border-zinc-100 px-3 py-2 rounded-full active:scale-95 transition-all">
+                    <div id="mirrorIndicator" class="w-1 h-1 rounded-full bg-zinc-900"></div>
+                    <span class="text-[8px] font-bold tracking-widest uppercase">Mirror: <span id="mirrorStatusText">ON</span></span>
+                </button>
+                <a href="gallery.html" class="flex-1 bg-zinc-900 text-white text-center py-2 rounded-full text-[8px] font-bold tracking-widest uppercase shadow-md active:scale-95 transition-all">
+                    View Archive
+                </a>
+            </div>
+        </div>
+
+        <div class="w-full lg:w-1/2 flex flex-col space-y-3 md:space-y-8 py-1 md:py-4">
+            <section>
+                <h3 class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">01. Select Frame</h3>
+                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1">
+                    <button onclick="changeFrame('frame1', this)" class="flex-shrink-0 w-14 md:w-24 aspect-[1/3] bg-zinc-50 border-2 border-zinc-900 rounded-lg overflow-hidden shadow-sm transition-all">
+                        <img src="images/frame1.png" class="w-full h-full object-fill bg-zinc-100">
+                    </button>
+                    <button onclick="changeFrame('frame2', this)" class="flex-shrink-0 w-14 md:w-24 aspect-[1/3] bg-zinc-50 border-2 border-transparent rounded-lg overflow-hidden shadow-sm transition-all">
+                        <img src="images/frame2.png" class="w-full h-full object-fill bg-zinc-100">
+                    </button>
+                </div>
+            </section>
+
+            <div class="pt-1">
+                <button onclick="startSession()" id="btnAction" class="w-full bg-zinc-900 text-white py-4 md:py-6 rounded-[1.5rem] md:rounded-[2rem] text-[10px] md:text-[12px] font-bold tracking-[0.3em] uppercase shadow-xl active:scale-95 transition-all">
+                    Start 3-Shot Session
+                </button>
+                <div id="status" class="mt-2"></div>
+            </div>
+        </div>
+    </main>
+
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+        const stripConfig = {
+            canvasWidth: 1403,
+            canvasHeight: 4208,
+            photoWidth: 1086,    
+            photoHeight: 812,    
+            photoXPositions: [149, 163, 157], 
+            photoYPositions: [525, 1655, 2725]
+        };
+
+        const bleedAmount = 20; 
+        const cloudName = 'dqbwhxnxn'; // Ganti dengan Cloud Name Anda
+        const uploadPreset = 'photoboth_upload'; // Ganti dengan Upload Preset Anda
+        let currentFrameId = 'frame1';
+        let isMirror = true;
+        let capturedPhotos = [];
+
+        const mainBody = document.getElementById('mainBody');
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const countdownText = document.getElementById('countdownText');
+        const btnAction = document.getElementById('btnAction');
+        const printLoading = document.getElementById('printLoading');
+
+        navigator.mediaDevices.getUserMedia({ 
+            video: { width: 1920, height: 1080 } 
+        }).then(stream => { video.srcObject = stream; });
+
+        function toggleMirror() {
+            isMirror = !isMirror;
+            video.classList.toggle('mirror-active', isMirror);
+            document.getElementById('mirrorStatusText').innerText = isMirror ? "ON" : "OFF";
+        }
+
+        function changeFrame(id, el) {
+            currentFrameId = id;
+            document.getElementById('liveFrame').src = `images/${id}.png`;
+            document.querySelectorAll('button[onclick^="changeFrame"]').forEach(btn => btn.classList.replace('border-zinc-900', 'border-transparent'));
+            el.classList.replace('border-transparent', 'border-zinc-900');
+        }
+
+        async function startSession() {
+            btnAction.disabled = true;
+            capturedPhotos = [];
+            mainBody.classList.add('capturing-mode');
+
+            for(let i=1; i<=3; i++) {
+                btnAction.innerHTML = `PHOTO ${i} / 3`;
+                await runCountdown(3);
+                document.getElementById('flashOverlay').classList.add('flash-active');
+                setTimeout(() => document.getElementById('flashOverlay').classList.remove('flash-active'), 600);
+                capturePhoto();
+                if(i < 3) await new Promise(r => setTimeout(r, 800));
+            }
+            
+            mainBody.classList.remove('capturing-mode');
+            generateFinalStrip();
+        }
+
+        function runCountdown(sec) {
+            return new Promise(resolve => {
+                let count = sec;
+                const timer = setInterval(() => {
+                    countdownText.innerText = count;
+                    countdownText.classList.remove('animate-count');
+                    void countdownText.offsetWidth; 
+                    countdownText.classList.add('animate-count');
+                    count--;
+                    if (count < 0) {
+                        clearInterval(timer);
+                        countdownText.innerText = "";
+                        resolve();
+                    }
+                }, 1000);
+            });
+        }
+
+        function capturePhoto() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            const tCtx = tempCanvas.getContext('2d');
+            if(isMirror) { tCtx.translate(tempCanvas.width, 0); tCtx.scale(-1, 1); }
+            tCtx.drawImage(video, 0, 0);
+            capturedPhotos.push(tempCanvas.toDataURL('image/png', 1.0));
+        }
+
+        async function generateFinalStrip() {
+            printLoading.classList.remove('hidden');
+            const ctx = canvas.getContext('2d');
+            canvas.width = stripConfig.canvasWidth;
+            canvas.height = stripConfig.canvasHeight;
+
+            const imgFrame = new Image();
+            imgFrame.src = `images/${currentFrameId}.png`;
+            imgFrame.crossOrigin = "anonymous";
+
+            imgFrame.onload = async function() {
+                for (let i = 0; i < 3; i++) {
+                    const p = new Image();
+                    p.src = capturedPhotos[i];
+                    await new Promise(r => p.onload = r);
+
+                    const targetX = stripConfig.photoXPositions[i];
+                    const targetY = stripConfig.photoYPositions[i];
+                    
+                    const bX = targetX - bleedAmount;
+                    const bY = targetY - bleedAmount;
+                    const bW = stripConfig.photoWidth + (bleedAmount * 2);
+                    const bH = stripConfig.photoHeight + (bleedAmount * 2);
+
+                    drawSmartCrop(ctx, p, bX, bY, bW, bH);
+                }
+
+                ctx.drawImage(imgFrame, 0, 0, stripConfig.canvasWidth, stripConfig.canvasHeight);
+                uploadToCloudinary(canvas.toDataURL('image/png', 0.95));
+            };
+        }
+
+        // LOGIKA BARU: Paksa isi kotak (Stretching Vertikal)
+        function drawSmartCrop(ctx, img, x, y, w, h) {
+            // Lebar (w) tetap sesuai photoWidth + bleed
+            // Tinggi (h) dipaksa ke 812px + bleed (sekitar 2.95cm di cetakan)
+            // drawImage memetakan seluruh foto ke ukuran target secara paksa
+            ctx.drawImage(img, 0, 0, img.width, img.height, x, y, w, h);
+        }
+
+        async function uploadToCloudinary(base64) {
+            const formData = new FormData();
+            formData.append('file', base64);
+            formData.append('upload_preset', uploadPreset);
+            formData.append('tags', 'photobox_event');
+
+            try {
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+                printLoading.classList.add('hidden');
+                btnAction.disabled = false;
+                btnAction.innerHTML = "START NEW SESSION";
+
+                if (data.secure_url) {
+                    document.getElementById('status').innerHTML = `
+                        <div class="p-3 bg-zinc-50 rounded-xl flex items-center justify-between border border-zinc-100 shadow-lg">
+                            <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-900">Ready!</span>
+                            <div class="flex gap-2">
+                                <a href="${data.secure_url}" target="_blank" class="bg-zinc-900 text-white px-4 py-1.5 rounded-full text-[8px] font-bold uppercase tracking-widest hover:bg-black transition-colors">Download</a>
+                            </div>
+                        </div>`;
+                }
+            } catch (err) {
+                alert("Upload Failed.");
+                printLoading.classList.add('hidden');
+                btnAction.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
